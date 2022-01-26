@@ -1,0 +1,236 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+#WORKING OK
+$dockerce_debian_bullseye_script = <<SCRIPT
+# https://docs.docker.com/engine/install/debian/
+# https://www.debian.org/releases/stable/
+
+#Uninstall old versions
+apt-get remove docker docker-engine docker.io containerd runc -qy
+apt-get update -qy
+
+# Docker repository debian buster
+printf "%s\n" "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-ce-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" \
+  | sudo tee /etc/apt/sources.list.d/docker-ce.list
+
+
+
+#Import the gpg key
+curl -fsSL https://download.docker.com/linux/debian/gpg \
+  | gpg --dearmor \
+  | sudo tee /usr/share/keyrings/docker-ce-archive-keyring.gpg
+
+apt-get update -qy
+#List the versions available in your repo
+apt-cache madison docker-ce
+
+# Install the latest version of docker-ce
+apt-get install docker-ce docker-ce-cli containerd.io -yq
+
+# Client: Docker Engine - Community
+# Server: Docker Engine - Community
+docker version
+
+docker --version
+
+# https://docs.docker.com/install/linux/linux-postinstall/
+# Manage Docker as a non-root user
+# add user to the docker group
+usermod -aG docker $USER
+
+docker run hello-world
+
+#Uninstall Docker Engine
+# apt-get purge docker-ce docker-ce-cli containerd.io -yq
+# Images, containers, volumes, or customized configuration files on your host are not automatically removed
+# delete all images, containers, and volumes
+# rm -rf /var/lib/docker
+# rm -rf /var/lib/containerd
+
+#install docker-compose
+# https://docs.docker.com/compose/install/
+curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+docker-compose version
+SCRIPT
+
+#WORKING OK
+$dockerce_debian_buster_script = <<SCRIPT
+# Kali Linux is based on Debian, use Debian’s current stable version 
+# (even though Kali Linux is a rolling distribution). 
+# At the time of writing, its “buster”:
+# https://www.kali.org/docs/containers/installing-docker-on-kali/
+# https://docs.docker.com/engine/install/debian/
+# https://www.debian.org/releases/stable/
+
+#Uninstall old versions
+apt-get remove docker docker-engine docker.io containerd runc -qy
+apt-get update -qy
+
+# Docker repository debian buster
+printf "%s\n" "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-ce-archive-keyring.gpg] https://download.docker.com/linux/debian buster stable" \
+  | sudo tee /etc/apt/sources.list.d/docker-ce.list
+
+
+
+#Import the gpg key
+curl -fsSL https://download.docker.com/linux/debian/gpg \
+  | gpg --dearmor \
+  | sudo tee /usr/share/keyrings/docker-ce-archive-keyring.gpg
+
+apt-get update -qy
+# List the versions available in your repo
+apt-cache madison docker-ce
+
+# Install the latest version of docker-ce
+apt-get install docker-ce docker-ce-cli containerd.io -yq
+
+
+
+# Client: Docker Engine - Community
+# Server: Docker Engine - Community
+docker version
+
+docker --version
+
+# https://docs.docker.com/install/linux/linux-postinstall/
+# Manage Docker as a non-root user
+# add user to the docker group
+usermod -aG docker $USER
+
+docker run hello-world
+
+#install docker-compose
+# https://docs.docker.com/compose/install/
+curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+docker-compose version
+
+#Uninstall Docker Engine
+# apt-get purge docker-ce docker-ce-cli containerd.io -yq
+# Images, containers, volumes, or customized configuration files on your host are not automatically removed
+# delete all images, containers, and volumes
+# rm -rf /var/lib/docker
+# rm -rf /var/lib/containerd
+SCRIPT
+
+Vagrant.configure(2) do |config|
+  config.vm.box_check_update = false
+
+  # vbox template for all vagranth instances
+  config.vm.provider "virtualbox" do |vb|
+    vb.gui = false
+    vb.memory = "512"
+    vb.cpus = 2
+  end
+
+              config.vm.define "vg-debian-03" do |k8scluster|
+                # https://wiki.debian.org/DebianReleases
+                #https://github.com/chef/bento/tree/main/packer_templates/debian
+                k8scluster.vm.box = "bento/debian-11.2"
+                k8scluster.vm.hostname = "vg-debian-03"
+                k8scluster.vm.network "private_network", ip: "192.168.50.18"                
+                # k8scluster.vm.synced_folder ".", "/vagrant", disabled: true 
+                k8scluster.vm.provider "virtualbox" do |vb|
+                    vb.name = "vbox-debian-03"
+                    vb.memory = "4096"
+                end
+
+                k8scluster.vm.provision "shell", inline: $dockerce_debian_bullseye_script
+                k8scluster.vm.provision :shell, path: "provisioning/bootstrap.sh"
+              end
+
+              config.vm.define "vg-debian-04" do |k8scluster|
+                # https://wiki.debian.org/DebianReleases                
+                #https://github.com/chef/bento/tree/main/packer_templates/debian
+                k8scluster.vm.box = "bento/debian-10.11"
+                k8scluster.vm.hostname = "vg-debian-04"
+                k8scluster.vm.network "private_network", ip: "192.168.50.18"                
+                # k8scluster.vm.synced_folder ".", "/vagrant", disabled: true 
+                k8scluster.vm.provider "virtualbox" do |vb|
+                    vb.name = "vbox-debian-04"
+                    vb.memory = "4096"
+                end
+                k8scluster.vm.provision "shell", inline: $dockerce_debian_buster_script
+                k8scluster.vm.provision :shell, path: "provisioning/bootstrap.sh"
+
+              end
+
+
+              config.vm.define "vg-debian-05" do |k8scluster|
+                # https://wiki.debian.org/DebianReleases                
+                #https://github.com/chef/bento/tree/main/packer_templates/debian
+                k8scluster.vm.box = "bento/debian-9.13"
+                k8scluster.vm.hostname = "vg-debian-05"
+                k8scluster.vm.network "private_network", ip: "192.168.50.19"                
+                # k8scluster.vm.synced_folder ".", "/vagrant", disabled: true 
+                k8scluster.vm.provider "virtualbox" do |vb|
+                    vb.name = "vbox-debian-05"
+                    vb.memory = "4096"
+                end
+
+                k8scluster.vm.provision :shell, path: "provisioning/bootstrap.sh"
+
+                # k8scluster.vm.provision "ansible_local" do |ansible|
+                #   # https://www.vagrantup.com/docs/provisioning/ansible_common.html Shared Ansible Options
+                #   ansible.become = true
+                #   ansible.compatibility_mode = "2.0"
+                #   ansible.version = "2.9.9"
+                #   ansible.extra_vars = {
+                #           node_ip: "192.168.50.12"
+                #       }
+                #   ansible.playbook = "provisioning/deploy.yml"
+                # end
+
+              end
+
+              config.vm.define "vg-debian-06" do |k8scluster|
+                # https://wiki.debian.org/DebianReleases                
+                #https://app.vagrantup.com/debian/boxes/bullseye64
+                k8scluster.vm.box = "debian/bullseye64"
+                k8scluster.vm.hostname = "vg-debian-06"
+                k8scluster.vm.network "private_network", ip: "192.168.50.18"                
+                # k8scluster.vm.synced_folder ".", "/vagrant", disabled: true 
+                k8scluster.vm.provider "virtualbox" do |vb|
+                    vb.name = "vbox-debian-06"
+                    vb.memory = "4096"
+                end
+                k8scluster.vm.provision "shell", inline: $dockerce_debian_bullseye_script
+                k8scluster.vm.provision :shell, path: "provisioning/bootstrap.sh"
+
+              end
+
+              config.vm.define "vg-debian-07" do |k8scluster|
+                # https://wiki.debian.org/DebianReleases                
+                #https://app.vagrantup.com/debian/boxes/buster64
+                k8scluster.vm.box = "debian/buster64"
+                k8scluster.vm.hostname = "vg-debian-07"
+                k8scluster.vm.network "private_network", ip: "192.168.50.18"                
+                # k8scluster.vm.synced_folder ".", "/vagrant", disabled: true 
+                k8scluster.vm.provider "virtualbox" do |vb|
+                    vb.name = "vbox-debian-07"
+                    vb.memory = "4096"
+                end
+                k8scluster.vm.provision "shell", inline: $dockerce_debian_buster_script
+                k8scluster.vm.provision :shell, path: "provisioning/bootstrap.sh"
+
+              end      
+              
+              config.vm.define "vg-debian-08" do |k8scluster|
+                # https://wiki.debian.org/DebianReleases                
+                #https://app.vagrantup.com/debian/boxes/stretch64
+                k8scluster.vm.box = "debian/stretch64"
+                k8scluster.vm.hostname = "vg-debian-08"
+                k8scluster.vm.network "private_network", ip: "192.168.50.18"                
+                # k8scluster.vm.synced_folder ".", "/vagrant", disabled: true 
+                k8scluster.vm.provider "virtualbox" do |vb|
+                    vb.name = "vbox-debian-08"
+                    vb.memory = "4096"
+                end
+
+                k8scluster.vm.provision :shell, path: "provisioning/bootstrap.sh"
+
+              end 
+
+end
